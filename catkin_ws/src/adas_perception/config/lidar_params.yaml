@@ -6,22 +6,27 @@ voxel_size: 0.15  # meters - slightly larger for faster processing
 
 # Ground Removal (CARLA坐标系: z负值为下方)
 # LiDAR安装高度约2.4m，地面在z≈-2.4
+# 增加高度容忍度，避免路面不平整导致误触发
 ground_z_min: -2.5   # meters - 地面以下（滤除）
-ground_z_max: -1.8   # meters - 地面高度上限
+ground_z_max: -1.5   # meters - 地面高度上限 (从-1.8调整到-1.5，增加0.3m容忍)
 # 只保留 z > ground_z_max 的点（障碍物）
 
 # DBSCAN Clustering
 cluster_eps: 0.8  # meters - 增大以适应稀疏点云
 cluster_min_samples: 5  # 减少以检测小障碍物
 
-# Range limits (前向检测区域)
+# Range limits (前向检测区域) - 放宽以便调试
 max_distance: 50.0  # meters - ignore obstacles beyond this
-min_x: 0.5  # meters - 忽略车身附近
+min_x: 0.5   # meters - 降低到0.5m
 max_x: 50.0  # meters
-min_y: -10.0  # meters - 左右范围
+min_y: -10.0  # meters - 恢复到±10m
 max_y: 10.0   # meters
-min_z: -1.8  # meters - 障碍物最低高度
-max_z: 2.0   # meters - 障碍物最高高度
+min_z: -2.0  # meters - 放宽
+max_z: 2.0   # meters - 放宽
+
+# Obstacle filtering - 降低要求以便调试
+min_obstacle_points: 5    # 降低到5点
+min_obstacle_size: 0.2    # meters - 降低到0.2m
 
 # Obstacle Tracking
 association_threshold: 2.0  # meters - max distance to associate detection with track

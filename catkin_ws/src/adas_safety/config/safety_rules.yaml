@@ -1,13 +1,19 @@
 # Safety Monitor Configuration
-# 安全监控配置 (ISO 26262)
+# 安全监控配置
 
-# Watchdog
-watchdog_timeout_ms: 100.0  # Maximum allowed heartbeat age (relaxed for simulation)
-                            # Real vehicle should use 50ms with C++ watchdog
+# Watchdog - 检测AEB节点故障
+# 仿真环境需要更宽松的超时（ROS时间不稳定）
+# 实车部署时应改为 50-100ms
+watchdog_timeout_ms: 200.0  # Maximum allowed heartbeat age (ms)
+                            # heartbeat=40Hz(25ms), timeout=200ms for simulation
+
+# Emergency Override - 危急情况下覆盖用户操作
+emergency_override_enabled: true   # 启用紧急覆盖
+emergency_ttc_threshold: 1.0       # TTC < 1.0s 时强制介入
 
 # Plausibility Rules
-max_decel_no_obstacle: 2.0   # Max decel (m/s²) when no obstacle within threshold
+max_decel_no_obstacle: 3.0   # Max decel (m/s²) when no obstacle within threshold
 min_obstacle_distance: 50.0  # Distance threshold for plausibility check (meters)
 
 # Safe State
-safe_deceleration: 5.0  # Deceleration to apply in safe state (m/s²)
+safe_deceleration: 8.0  # Deceleration to apply in safe state (m/s²)

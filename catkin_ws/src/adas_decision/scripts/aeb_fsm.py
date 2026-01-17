@@ -5,10 +5,10 @@ AEB Finite State Machine
 自动紧急制动状态机
 
 States:
-    INACTIVE:      TTC > 2.5s
-    WARNING:       1.5s <= TTC < 2.5s (FCW alert)
-    PARTIAL_BRAKE: 0.6s <= TTC < 1.5s (decel 3.0-6.0 m/s²)
-    FULL_BRAKE:    TTC < 0.6s (decel 10.0 m/s²)
+    INACTIVE:      TTC > 3.0s
+    WARNING:       1.5s <= TTC < 3.0s (FCW alert)
+    PARTIAL_BRAKE: 1.0s <= TTC < 1.5s (decel 4.0-7.0 m/s²)
+    FULL_BRAKE:    TTC < 1.0s (brake=1.0, 踩死)
 
 Subscribed Topics:
     /adas/ttc_info (adas_msgs/TTCInfo)
@@ -44,15 +44,18 @@ class AEBFiniteStateMachine:
         rospy.init_node('aeb_fsm', anonymous=False)
         
         # Load thresholds from parameters
-        self.ttc_inactive = rospy.get_param('~ttc_inactive', 2.5)
+        self.ttc_inactive = rospy.get_param('~ttc_inactive', 3.0)
         self.ttc_warning = rospy.get_param('~ttc_warning', 1.5)
-        self.ttc_partial = rospy.get_param('~ttc_partial', 0.6)
+        self.ttc_partial = rospy.get_param('~ttc_partial', 1.0)
         
-        self.decel_partial_min = rospy.get_param('~decel_partial_min', 3.0)
-        self.decel_partial_max = rospy.get_param('~decel_partial_max', 6.0)
-        self.decel_full = rospy.get_param('~decel_full', 10.0)
+        self.decel_partial_min = rospy.get_param('~decel_partial_min', 4.0)
+        self.decel_partial_max = rospy.get_param('~decel_partial_max', 7.0)
+        self.decel_full = rospy.get_param('~decel_full', 1.0)  # brake pedal value, not m/s²
         
-        self.heartbeat_rate = rospy.get_param('~heartbeat_rate', 50.0)  # Hz
+        self.heartbeat_rate = rospy.get_param('~heartbeat_rate', 40.0)  # Hz (25ms period)
+        
+        # State stability - 降低确认要求以便调试
+        self.state_confirm_count = rospy.get_param('~state_confirm_count', 1)  # 改为1帧立即响应
         
         # State variables
         self.current_state = AEBStateEnum.INACTIVE
@@ -61,6 +64,10 @@ class AEBFiniteStateMachine:
         self.enabled = True
         self.fault_detected = False
         self.fault_message = ""
+        
+        # State confirmation tracking
+        self.pending_state = AEBStateEnum.INACTIVE
+        self.pending_count = 0
         
         # Publishers
         self.state_pub = rospy.Publisher('/adas/aeb_state', AEBState, queue_size=1)
@@ -83,6 +90,7 @@ class AEBFiniteStateMachine:
         
         rospy.loginfo("AEB FSM initialized")
         rospy.loginfo(f"  Thresholds - Inactive: {self.ttc_inactive}s, Warning: {self.ttc_warning}s, Partial: {self.ttc_partial}s")
+        rospy.loginfo(f"  Heartbeat rate: {self.heartbeat_rate}Hz ({1000/self.heartbeat_rate:.1f}ms)")
     
     def handle_set_mode(self, req):
         """Service handler for enabling/disabling AEB"""
@@ -119,18 +127,33 @@ class AEBFiniteStateMachine:
         else:
             target_state = AEBStateEnum.FULL_BRAKE
         
-        # State transition (with hysteresis to prevent oscillation)
+        # State transition with confirmation (prevents single-frame false triggers)
         if target_state != self.current_state:
-            # Only allow transitions to higher urgency states immediately
-            # Transitions to lower urgency require minimum dwell time
-            if target_state > self.current_state:
-                self._transition_to(target_state, ttc)
+            # Track pending state
+            if target_state == self.pending_state:
+                self.pending_count += 1
             else:
-                # Check minimum dwell time (prevents oscillation)
-                dwell_time = (rospy.Time.now() - self.state_entry_time).to_sec()
-                min_dwell = 0.3  # seconds
-                if dwell_time > min_dwell:
+                self.pending_state = target_state
+                self.pending_count = 1
+            
+            # Require confirmation for state changes
+            # Higher urgency (FULL_BRAKE) requires fewer confirmations
+            required_confirms = 1 if target_state == AEBStateEnum.FULL_BRAKE else self.state_confirm_count
+            
+            if self.pending_count >= required_confirms:
+                if target_state > self.current_state:
+                    # Transition to higher urgency immediately after confirmation
                     self._transition_to(target_state, ttc)
+                else:
+                    # Transitions to lower urgency require minimum dwell time
+                    dwell_time = (rospy.Time.now() - self.state_entry_time).to_sec()
+                    min_dwell = 0.5  # seconds (increased from 0.3)
+                    if dwell_time > min_dwell:
+                        self._transition_to(target_state, ttc)
+        else:
+            # Reset pending if back to current state
+            self.pending_state = self.current_state
+            self.pending_count = 0
         
         # Calculate deceleration command
         decel_cmd = self._calculate_deceleration(ttc)

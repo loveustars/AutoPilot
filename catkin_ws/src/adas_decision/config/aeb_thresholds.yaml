@@ -1,20 +1,29 @@
 # AEB FSM Thresholds Configuration
-# AEB状态机阈值配置 (ISO 26262)
+# AEB状态机阈值配置
 
-# TTC Thresholds (seconds)
-ttc_inactive: 2.5    # TTC > 2.5s -> INACTIVE
-ttc_warning: 1.5     # 1.5s <= TTC < 2.5s -> WARNING (FCW)
-ttc_partial: 0.6     # 0.6s <= TTC < 1.5s -> PARTIAL_BRAKE
+# TTC Thresholds (seconds) - 调整后的介入等级
+ttc_inactive: 3.0    # TTC > 3.0s -> INACTIVE
+ttc_warning: 1.5     # 1.5s <= TTC < 3.0s -> WARNING (FCW)
+ttc_partial: 1.0     # 1.0s <= TTC < 1.5s -> PARTIAL_BRAKE
+# TTC < 1.0s -> FULL_BRAKE
 
 # Deceleration Commands (m/s²)
-decel_partial_min: 3.0   # Minimum decel in PARTIAL_BRAKE
-decel_partial_max: 6.0   # Maximum decel in PARTIAL_BRAKE
-decel_full: 10.0         # Decel in FULL_BRAKE (near max vehicle capability)
+decel_partial_min: 4.0   # Minimum decel in PARTIAL_BRAKE
+decel_partial_max: 7.0   # Maximum decel in PARTIAL_BRAKE  
+decel_full: 1.0          # FULL_BRAKE: brake=1.0 (踩死，不考虑加速度)
 
 # TTC Calculator Parameters
 min_ttc: 0.1         # Minimum TTC to report (seconds)
 max_ttc: 10.0        # Maximum TTC to consider (seconds)
-safety_margin: 2.0   # Additional safety distance (meters)
+safety_margin: 1.5   # Additional safety distance (meters)
 
-# Heartbeat
-heartbeat_rate: 50.0  # Hz - for safety monitor
+# Stability filtering - 放宽条件以便调试
+min_ego_velocity: 0.1          # m/s - 降低到0.1以响应低速行驶
+min_obstacle_confidence: 0.1   # 降低置信度要求
+stable_frames_required: 1      # 改为1帧立即响应
+
+# State confirmation - 降低确认要求
+state_confirm_count: 1         # 改为1帧立即响应
+
+# Heartbeat - 缩短到 25ms 确保系统活动监测
+heartbeat_rate: 40.0  # Hz (25ms period)

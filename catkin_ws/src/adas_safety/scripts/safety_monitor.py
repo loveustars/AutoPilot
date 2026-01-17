@@ -34,23 +34,35 @@ from adas_msgs.msg import AEBState, ObstacleArray, SafetyStatus
 
 
 class SafetyMonitor:
+    # AEB State constants
+    AEB_INACTIVE = 0
+    AEB_WARNING = 1
+    AEB_PARTIAL_BRAKE = 2
+    AEB_FULL_BRAKE = 3
+    
     def __init__(self):
         rospy.init_node('safety_monitor', anonymous=False)
         
         # Parameters
         self.watchdog_timeout_ms = rospy.get_param('~watchdog_timeout_ms', 50.0)
-        self.max_decel_no_obstacle = rospy.get_param('~max_decel_no_obstacle', 2.0)
+        self.max_decel_no_obstacle = rospy.get_param('~max_decel_no_obstacle', 3.0)
         self.min_obstacle_distance = rospy.get_param('~min_obstacle_distance', 50.0)
-        self.safe_deceleration = rospy.get_param('~safe_deceleration', 5.0)
+        self.safe_deceleration = rospy.get_param('~safe_deceleration', 8.0)
+        
+        # Emergency override parameters
+        self.emergency_override_enabled = rospy.get_param('~emergency_override_enabled', True)
+        self.emergency_ttc_threshold = rospy.get_param('~emergency_ttc_threshold', 1.0)
         
         # State
         self.last_heartbeat_time = rospy.Time.now()
         self.last_aeb_command = None
         self.last_aeb_state = None
         self.closest_obstacle_distance = float('inf')
+        self.current_ttc = -1.0
         
         self.primary_alive = True
         self.override_active = False
+        self.emergency_override_active = False
         self.plausibility_ok = True
         self.plausibility_reason = ""
         
@@ -60,6 +72,7 @@ class SafetyMonitor:
         # Watchdog state - start inactive until first heartbeat received
         self.first_heartbeat_received = False
         self.watchdog_active = False
+        self.watchdog_activation_time = None  # Delay activation to allow system startup
         
         # Publishers
         self.safe_cmd_pub = rospy.Publisher('/adas/safe_command', AccelStamped, queue_size=1)
@@ -93,16 +106,20 @@ class SafetyMonitor:
         
         rospy.loginfo("Safety Monitor initialized")
         rospy.loginfo(f"  Watchdog timeout: {self.watchdog_timeout_ms}ms")
+        rospy.loginfo(f"  Emergency override: {'enabled' if self.emergency_override_enabled else 'disabled'}")
+        rospy.loginfo(f"  Emergency TTC threshold: {self.emergency_ttc_threshold}s")
     
     def heartbeat_callback(self, msg: Header):
         """Receive heartbeat from AEB FSM"""
         with self.lock:
-            self.last_heartbeat_time = msg.stamp
+            # Use current time, not message timestamp (avoids clock sync issues in simulation)
+            self.last_heartbeat_time = rospy.Time.now()
             
-            # Activate watchdog after first heartbeat
+            # Activate watchdog after first heartbeat with delay
             if not self.first_heartbeat_received:
                 self.first_heartbeat_received = True
-                rospy.loginfo("Safety Monitor: First heartbeat received, activating watchdog")
+                self.watchdog_activation_time = rospy.Time.now()
+                rospy.loginfo("Safety Monitor: First heartbeat received, watchdog will activate in 1s")
                 
             if not self.primary_alive:
                 rospy.loginfo("Safety Monitor: Primary node recovered")
@@ -113,13 +130,23 @@ class SafetyMonitor:
         with self.lock:
             self.last_aeb_command = msg
         
-        # Validate and forward command
+        # Validate and forward command (with emergency override check)
         self._process_command(msg)
     
     def state_callback(self, msg: AEBState):
-        """Receive state from AEB FSM"""
+        """Receive state from AEB FSM and check for emergency"""
         with self.lock:
             self.last_aeb_state = msg
+            self.current_ttc = msg.ttc_at_entry
+            
+            # Check for emergency override condition
+            if self.emergency_override_enabled and msg.state == self.AEB_FULL_BRAKE:
+                if not self.emergency_override_active:
+                    self.emergency_override_active = True
+                    rospy.logwarn("EMERGENCY OVERRIDE: TTC critical, forcing maximum braking")
+            elif self.emergency_override_active and msg.state < self.AEB_PARTIAL_BRAKE:
+                self.emergency_override_active = False
+                rospy.loginfo("Emergency override released")
     
     def obstacle_callback(self, msg: ObstacleArray):
         """Update obstacle information for plausibility check"""
@@ -135,6 +162,16 @@ class SafetyMonitor:
         with self.lock:
             if not self.first_heartbeat_received:
                 return
+            
+            # Delay watchdog activation for 1 second after first heartbeat
+            # This allows all nodes to stabilize during startup
+            if self.watchdog_activation_time is not None:
+                startup_elapsed = (rospy.Time.now() - self.watchdog_activation_time).to_sec()
+                if startup_elapsed < 1.0:
+                    return  # Still in startup grace period
+                elif not self.watchdog_active:
+                    self.watchdog_active = True
+                    rospy.loginfo("Safety Monitor: Watchdog now active")
             
             age_ms = (rospy.Time.now() - self.last_heartbeat_time).to_sec() * 1000
             

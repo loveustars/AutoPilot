@@ -30,10 +30,19 @@ class TTCCalculator:
         self.max_ttc = rospy.get_param('~max_ttc', 10.0)  # seconds
         self.safety_margin = rospy.get_param('~safety_margin', 2.0)  # meters
         
+        # Stability filtering parameters - 放宽条件以便调试
+        self.min_ego_velocity = rospy.get_param('~min_ego_velocity', 0.1)  # m/s - 降低到0.1
+        self.min_obstacle_confidence = rospy.get_param('~min_obstacle_confidence', 0.1)  # 降低
+        self.stable_frames_required = rospy.get_param('~stable_frames_required', 1)  # 改为1帧立即响应
+        
         # State
         self.ego_velocity = 0.0  # m/s (longitudinal)
         self.ego_acceleration = 0.0  # m/s^2
         self.last_velocity_time = None
+        
+        # Obstacle stability tracking
+        self.obstacle_frame_count = 0
+        self.last_closest_id = -1
         
         # Publishers
         self.ttc_pub = rospy.Publisher('/adas/ttc_info', TTCInfo, queue_size=1)
@@ -69,12 +78,43 @@ class TTCCalculator:
         ttc_msg.ttc = -1.0  # Default: no collision risk
         ttc_msg.collision_imminent = False
         
+        # Debug: log ego velocity periodically
+        if not hasattr(self, '_log_counter'):
+            self._log_counter = 0
+        self._log_counter += 1
+        
+        # Skip TTC calculation if ego velocity too low (stationary/crawling)
+        if abs(self.ego_velocity) < self.min_ego_velocity:
+            if self._log_counter % 100 == 0:  # Log every 5 seconds at 20Hz
+                rospy.loginfo(f"TTC skip: ego_velocity={self.ego_velocity:.2f} < {self.min_ego_velocity}")
+            self.obstacle_frame_count = 0  # Reset stability counter
+            self.ttc_pub.publish(ttc_msg)
+            return
+        
         if msg.closest_obstacle_idx < 0 or len(msg.obstacles) == 0:
+            if self._log_counter % 100 == 0:
+                rospy.loginfo(f"TTC skip: no obstacles (count={len(msg.obstacles)}, closest_idx={msg.closest_obstacle_idx})")
+            self.obstacle_frame_count = 0
             self.ttc_pub.publish(ttc_msg)
             return
         
         # Get closest obstacle
         closest = msg.obstacles[msg.closest_obstacle_idx]
+        
+        # 移除置信度过滤 - LiDAR处理器已经过滤了噪声
+        # confidence现在总是 >= 0.3（基于点数计算）
+        
+        # Track obstacle stability (same obstacle for multiple frames)
+        if closest.id == self.last_closest_id:
+            self.obstacle_frame_count += 1
+        else:
+            self.obstacle_frame_count = 1
+            self.last_closest_id = closest.id
+        
+        # Require stable detection before computing TTC
+        if self.obstacle_frame_count < self.stable_frames_required:
+            self.ttc_pub.publish(ttc_msg)
+            return
         
         # Calculate relative velocity (positive = approaching)
         # Obstacle velocity is already relative to ego in obstacle_tracker

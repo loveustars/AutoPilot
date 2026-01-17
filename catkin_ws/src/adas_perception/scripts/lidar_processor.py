@@ -26,18 +26,22 @@ class LidarProcessor:
         
         # Parameters
         self.voxel_size = rospy.get_param('~voxel_size', 0.15)  # meters
-        self.ground_z_max = rospy.get_param('~ground_z_max', -1.8)  # CARLA ground level
+        self.ground_z_max = rospy.get_param('~ground_z_max', -1.5)  # CARLA ground level (adjusted)
         self.cluster_eps = rospy.get_param('~cluster_eps', 0.8)
         self.cluster_min_samples = rospy.get_param('~cluster_min_samples', 5)
         self.max_distance = rospy.get_param('~max_distance', 50.0)
         
-        # ROI limits
-        self.min_x = rospy.get_param('~min_x', 0.5)  # 前方
+        # ROI limits (adjusted for reduced false positives)
+        self.min_x = rospy.get_param('~min_x', 0.5)   # 前方 - 降低到0.5m
         self.max_x = rospy.get_param('~max_x', 50.0)
-        self.min_y = rospy.get_param('~min_y', -10.0)  # 左右
+        self.min_y = rospy.get_param('~min_y', -10.0)  # 左右 - 恢复到±10m
         self.max_y = rospy.get_param('~max_y', 10.0)
-        self.min_z = rospy.get_param('~min_z', -1.8)  # 高度
-        self.max_z = rospy.get_param('~max_z', 2.0)
+        self.min_z = rospy.get_param('~min_z', -2.0)  # 高度 - 放宽
+        self.max_z = rospy.get_param('~max_z', 2.0)   # 放宽
+        
+        # Minimum obstacle size requirements - 降低要求
+        self.min_obstacle_points = rospy.get_param('~min_obstacle_points', 5)  # 降低到5点
+        self.min_obstacle_size = rospy.get_param('~min_obstacle_size', 0.2)  # 降低到0.2m
         
         # Publishers
         self.obstacle_pub = rospy.Publisher(
@@ -149,12 +153,21 @@ class LidarProcessor:
             min_pt = np.min(cluster_points, axis=0)
             max_pt = np.max(cluster_points, axis=0)
             
+            width = max_pt[1] - min_pt[1]
+            length = max_pt[0] - min_pt[0]
+            
+            # Filter small obstacles (likely noise)
+            if len(cluster_points) < self.min_obstacle_points:
+                continue
+            if max(width, length) < self.min_obstacle_size:
+                continue
+            
             obstacles.append({
                 'id': self._get_next_id(),
                 'centroid': centroid,
                 'distance': distance,
-                'width': max_pt[1] - min_pt[1],
-                'length': max_pt[0] - min_pt[0],
+                'width': width,
+                'length': length,
                 'height': max_pt[2] - min_pt[2],
                 'points': len(cluster_points)
             })
@@ -186,7 +199,9 @@ class LidarProcessor:
             obstacle.width = obs['width']
             obstacle.length = obs['length']
             obstacle.height = obs['height']
-            obstacle.confidence = min(1.0, obs['points'] / 100.0)
+            # 修复置信度计算：基于点数，但使用更合理的基准
+            # 5点=0.5, 10点=0.7, 20点=0.9, 50点+=1.0
+            obstacle.confidence = min(1.0, 0.3 + obs['points'] / 30.0)
             
             msg.obstacles.append(obstacle)
             

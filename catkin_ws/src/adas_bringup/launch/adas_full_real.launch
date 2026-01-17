@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ============================================ -->
+    <!-- ADAS Full System - Real Vehicle (预留)       -->
+    <!-- 完整ADAS系统启动 - 实车模式                  -->
+    <!-- ============================================ -->
+    
+    <arg name="use_cpp_watchdog" default="true" doc="Use C++ watchdog for deterministic timing"/>
+    <arg name="enable_camera" default="false"/>
+    
+    <!-- ========== Hardware Abstraction Layer ========== -->
+    <include file="$(find adas_hal)/launch/hal_real.launch"/>
+    
+    <!-- ========== Perception Stack ========== -->
+    <!-- Use C++ filter for real-time performance -->
+    <include file="$(find adas_perception)/launch/perception.launch">
+        <arg name="use_cpp_filter" value="true"/>
+        <arg name="enable_camera" value="$(arg enable_camera)"/>
+    </include>
+    
+    <!-- ========== Decision Stack ========== -->
+    <include file="$(find adas_decision)/launch/decision.launch"/>
+    
+    <!-- ========== Safety Monitor ========== -->
+    <!-- Use C++ watchdog for ASIL-D compliance -->
+    <include file="$(find adas_safety)/launch/safety.launch">
+        <arg name="use_cpp_watchdog" value="$(arg use_cpp_watchdog)"/>
+    </include>
+    
+    <!-- ========== Vehicle Control ========== -->
+    <include file="$(find adas_control)/launch/control_real.launch"/>
+
+</launch>

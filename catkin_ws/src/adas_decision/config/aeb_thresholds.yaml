@@ -1,0 +1,20 @@
+# AEB FSM Thresholds Configuration
+# AEB状态机阈值配置 (ISO 26262)
+
+# TTC Thresholds (seconds)
+ttc_inactive: 2.5    # TTC > 2.5s -> INACTIVE
+ttc_warning: 1.5     # 1.5s <= TTC < 2.5s -> WARNING (FCW)
+ttc_partial: 0.6     # 0.6s <= TTC < 1.5s -> PARTIAL_BRAKE
+
+# Deceleration Commands (m/s²)
+decel_partial_min: 3.0   # Minimum decel in PARTIAL_BRAKE
+decel_partial_max: 6.0   # Maximum decel in PARTIAL_BRAKE
+decel_full: 10.0         # Decel in FULL_BRAKE (near max vehicle capability)
+
+# TTC Calculator Parameters
+min_ttc: 0.1         # Minimum TTC to report (seconds)
+max_ttc: 10.0        # Maximum TTC to consider (seconds)
+safety_margin: 2.0   # Additional safety distance (meters)
+
+# Heartbeat
+heartbeat_rate: 50.0  # Hz - for safety monitor

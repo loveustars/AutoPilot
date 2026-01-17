@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- OpenSCENARIO: Cut-in Scenario -->
+<!-- 旁车切入测试场景 -->
+<OpenSCENARIO>
+    <FileHeader revMajor="1" revMinor="0" date="2026-01-17" author="ADAS Team"/>
+    
+    <ParameterDeclarations>
+        <ParameterDeclaration name="EgoSpeed" parameterType="double" value="16.67"/> <!-- 60 km/h -->
+        <ParameterDeclaration name="CutInSpeed" parameterType="double" value="13.89"/> <!-- 50 km/h -->
+    </ParameterDeclarations>
+    
+    <CatalogLocations/>
+    
+    <RoadNetwork>
+        <LogicFile filepath="Town04"/>
+    </RoadNetwork>
+    
+    <Entities>
+        <ScenarioObject name="Ego">
+            <Vehicle name="vehicle.tesla.model3" vehicleCategory="car"/>
+        </ScenarioObject>
+        <ScenarioObject name="CutInVehicle">
+            <Vehicle name="vehicle.bmw.grandtourer" vehicleCategory="car"/>
+        </ScenarioObject>
+    </Entities>
+    
+    <Storyboard>
+        <Init>
+            <Actions>
+                <Private entityRef="Ego">
+                    <PrivateAction>
+                        <TeleportAction>
+                            <Position>
+                                <WorldPosition x="0" y="0" z="0.5" h="0"/>
+                            </Position>
+                        </TeleportAction>
+                    </PrivateAction>
+                    <PrivateAction>
+                        <LongitudinalAction>
+                            <SpeedAction>
+                                <SpeedActionTarget>
+                                    <AbsoluteTargetSpeed value="$EgoSpeed"/>
+                                </SpeedActionTarget>
+                            </SpeedAction>
+                        </LongitudinalAction>
+                    </PrivateAction>
+                </Private>
+                <Private entityRef="CutInVehicle">
+                    <PrivateAction>
+                        <TeleportAction>
+                            <Position>
+                                <RelativeWorldPosition entityRef="Ego" dx="20" dy="-3.5" dz="0"/>
+                            </Position>
+                        </TeleportAction>
+                    </PrivateAction>
+                    <PrivateAction>
+                        <LongitudinalAction>
+                            <SpeedAction>
+                                <SpeedActionTarget>
+                                    <AbsoluteTargetSpeed value="$CutInSpeed"/>
+                                </SpeedActionTarget>
+                            </SpeedAction>
+                        </LongitudinalAction>
+                    </PrivateAction>
+                </Private>
+            </Actions>
+        </Init>
+        
+        <Story name="CutInStory">
+            <Act name="CutInAct">
+                <ManeuverGroup name="CutInManeuver" maximumExecutionCount="1">
+                    <Actors selectTriggeringEntities="false">
+                        <EntityRef entityRef="CutInVehicle"/>
+                    </Actors>
+                    <Maneuver name="LaneChange">
+                        <Event name="CutInEvent" priority="overwrite">
+                            <Action name="LaneChangeAction">
+                                <PrivateAction>
+                                    <LateralAction>
+                                        <LaneChangeAction>
+                                            <LaneChangeActionDynamics dynamicsShape="sinusoidal" value="2" dynamicsDimension="time"/>
+                                            <LaneChangeTarget>
+                                                <RelativeTargetLane entityRef="Ego" value="0"/>
+                                            </LaneChangeTarget>
+                                        </LaneChangeAction>
+                                    </LateralAction>
+                                </PrivateAction>
+                            </Action>
+                            <StartTrigger>
+                                <ConditionGroup>
+                                    <Condition name="CutInTrigger" delay="0">
+                                        <ByEntityCondition>
+                                            <TriggeringEntities triggeringEntitiesRule="any">
+                                                <EntityRef entityRef="Ego"/>
+                                            </TriggeringEntities>
+                                            <EntityCondition>
+                                                <RelativeDistanceCondition entityRef="CutInVehicle" 
+                                                    relativeDistanceType="longitudinal" value="15" rule="lessThan"/>
+                                            </EntityCondition>
+                                        </ByEntityCondition>
+                                    </Condition>
+                                </ConditionGroup>
+                            </StartTrigger>
+                        </Event>
+                    </Maneuver>
+                </ManeuverGroup>
+                <StartTrigger/>
+            </Act>
+        </Story>
+        
+        <StopTrigger>
+            <ConditionGroup>
+                <Condition name="EndCondition" delay="0">
+                    <ByValueCondition>
+                        <SimulationTimeCondition value="15" rule="greaterThan"/>
+                    </ByValueCondition>
+                </Condition>
+            </ConditionGroup>
+        </StopTrigger>
+    </Storyboard>
+</OpenSCENARIO>

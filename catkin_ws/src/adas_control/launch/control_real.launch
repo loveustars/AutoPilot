@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ADAS Control - Real Vehicle Mode -->
+    
+    <node pkg="adas_control" type="vehicle_controller.py" name="vehicle_controller" output="screen">
+        <rosparam file="$(find adas_control)/config/real_vehicle.yaml" command="load"/>
+    </node>
+    
+    <node pkg="adas_control" type="brake_actuator.py" name="brake_actuator" output="screen">
+        <rosparam file="$(find adas_control)/config/real_vehicle.yaml" command="load"/>
+    </node>
+
+</launch>

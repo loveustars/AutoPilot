@@ -1,0 +1,28 @@
+# LiDAR Processing Parameters
+# LiDAR处理参数配置 (适配CARLA 0.9.13)
+
+# Voxel Grid Filter
+voxel_size: 0.15  # meters - slightly larger for faster processing
+
+# Ground Removal (CARLA坐标系: z负值为下方)
+# LiDAR安装高度约2.4m，地面在z≈-2.4
+ground_z_min: -2.5   # meters - 地面以下（滤除）
+ground_z_max: -1.8   # meters - 地面高度上限
+# 只保留 z > ground_z_max 的点（障碍物）
+
+# DBSCAN Clustering
+cluster_eps: 0.8  # meters - 增大以适应稀疏点云
+cluster_min_samples: 5  # 减少以检测小障碍物
+
+# Range limits (前向检测区域)
+max_distance: 50.0  # meters - ignore obstacles beyond this
+min_x: 0.5  # meters - 忽略车身附近
+max_x: 50.0  # meters
+min_y: -10.0  # meters - 左右范围
+max_y: 10.0   # meters
+min_z: -1.8  # meters - 障碍物最低高度
+max_z: 2.0   # meters - 障碍物最高高度
+
+# Obstacle Tracking
+association_threshold: 2.0  # meters - max distance to associate detection with track
+max_lost_frames: 5  # frames before removing lost track

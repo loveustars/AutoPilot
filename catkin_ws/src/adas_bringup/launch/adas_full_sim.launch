@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ============================================ -->
+    <!-- ADAS Full System - CARLA Simulation          -->
+    <!-- 完整ADAS系统启动 - CARLA仿真模式             -->
+    <!-- ============================================ -->
+    
+    <arg name="ego_vehicle" default="ego_vehicle"/>
+    <arg name="use_cpp_filter" default="false" doc="Use C++ pointcloud filter"/>
+    <arg name="enable_camera" default="false" doc="Enable camera detector"/>
+    <arg name="enable_rviz" default="true" doc="Launch RViz visualization"/>
+    
+    <!-- ========== Hardware Abstraction Layer ========== -->
+    <include file="$(find adas_hal)/launch/hal_simulation.launch">
+        <arg name="ego_vehicle" value="$(arg ego_vehicle)"/>
+    </include>
+    
+    <!-- ========== Perception Stack ========== -->
+    <include file="$(find adas_perception)/launch/perception.launch">
+        <arg name="use_cpp_filter" value="$(arg use_cpp_filter)"/>
+        <arg name="enable_camera" value="$(arg enable_camera)"/>
+    </include>
+    
+    <!-- ========== Decision Stack ========== -->
+    <include file="$(find adas_decision)/launch/decision.launch"/>
+    
+    <!-- ========== Safety Monitor ========== -->
+    <include file="$(find adas_safety)/launch/safety.launch">
+        <arg name="use_cpp_watchdog" value="false"/>
+    </include>
+    
+    <!-- ========== Vehicle Control ========== -->
+    <include file="$(find adas_control)/launch/control_sim.launch"/>
+    
+    <!-- ========== Visualization ========== -->
+    <node if="$(arg enable_rviz)" pkg="rviz" type="rviz" name="rviz" 
+          args="-d $(find adas_bringup)/rviz/adas_visualization.rviz"/>
+
+</launch>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- HAL - CARLA Simulation -->
+    
+    <arg name="ego_vehicle" default="ego_vehicle" doc="CARLA ego vehicle name"/>
+    
+    <node pkg="adas_hal" type="sensor_bridge_carla.py" name="sensor_bridge" output="screen">
+        <param name="carla_lidar_topic" value="/carla/$(arg ego_vehicle)/lidar"/>
+        <param name="carla_camera_topic" value="/carla/$(arg ego_vehicle)/rgb_front/image"/>
+        <param name="carla_odom_topic" value="/carla/$(arg ego_vehicle)/odometry"/>
+    </node>
+
+</launch>

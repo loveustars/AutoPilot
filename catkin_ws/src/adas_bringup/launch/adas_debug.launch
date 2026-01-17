@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ============================================ -->
+    <!-- ADAS Debug Mode - Minimal Launch             -->
+    <!-- 调试模式 - 最小化启动                        -->
+    <!-- ============================================ -->
+    
+    <arg name="module" default="all" doc="Module to debug: perception, decision, safety, all"/>
+    
+    <!-- Load all parameters for reference -->
+    <rosparam file="$(find adas_perception)/config/lidar_params.yaml" command="load" ns="lidar"/>
+    <rosparam file="$(find adas_decision)/config/aeb_thresholds.yaml" command="load" ns="aeb"/>
+    <rosparam file="$(find adas_safety)/config/safety_rules.yaml" command="load" ns="safety"/>
+    
+    <!-- HAL (always needed) -->
+    <include file="$(find adas_hal)/launch/hal_simulation.launch"/>
+    
+    <!-- Selective module launch -->
+    <group if="$(eval module == 'perception' or module == 'all')">
+        <node pkg="adas_perception" type="lidar_processor.py" name="lidar_processor" output="screen" launch-prefix="xterm -e"/>
+    </group>
+    
+    <group if="$(eval module == 'decision' or module == 'all')">
+        <node pkg="adas_decision" type="ttc_calculator.py" name="ttc_calculator" output="screen" launch-prefix="xterm -e"/>
+        <node pkg="adas_decision" type="aeb_fsm.py" name="aeb_fsm" output="screen" launch-prefix="xterm -e"/>
+    </group>
+    
+    <group if="$(eval module == 'safety' or module == 'all')">
+        <node pkg="adas_safety" type="safety_monitor.py" name="safety_monitor" output="screen" launch-prefix="xterm -e"/>
+    </group>
+
+</launch>

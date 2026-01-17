@@ -1,0 +1,13 @@
+# Vehicle Control Parameters - Simulation
+# 仿真车辆控制参数
+
+mode: simulation
+
+# Control
+max_deceleration: 10.0  # m/s² - max braking capability
+brake_gain: 0.1         # decel to brake pedal conversion
+control_rate: 50.0      # Hz
+
+# Actuator dynamics
+max_brake_rate: 5.0     # brake pedal change rate per second
+brake_delay: 0.05       # actuator delay (seconds)

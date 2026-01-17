@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ADAS Perception Stack -->
+    <!-- 感知堆栈启动文件 -->
+
+    <!-- Arguments -->
+    <arg name="use_cpp_filter" default="false" doc="Use C++ pointcloud filter (Phase 2)"/>
+    <arg name="enable_camera" default="false" doc="Enable camera detector"/>
+
+    <!-- LiDAR Processing -->
+    <group unless="$(arg use_cpp_filter)">
+        <!-- Python version (default) -->
+        <node pkg="adas_perception" type="lidar_processor.py" name="lidar_processor" output="screen">
+            <rosparam file="$(find adas_perception)/config/lidar_params.yaml" command="load"/>
+        </node>
+    </group>
+    
+    <group if="$(arg use_cpp_filter)">
+        <!-- C++ version (Phase 2 optimization) -->
+        <node pkg="adas_perception" type="pointcloud_filter_node" name="pointcloud_filter" output="screen">
+            <rosparam file="$(find adas_perception)/config/lidar_params.yaml" command="load"/>
+        </node>
+        <!-- Still need Python for clustering -->
+        <node pkg="adas_perception" type="lidar_processor.py" name="lidar_processor" output="screen">
+            <rosparam file="$(find adas_perception)/config/lidar_params.yaml" command="load"/>
+            <remap from="/adas/lidar" to="/adas/lidar_filtered"/>
+        </node>
+    </group>
+    
+    <!-- Obstacle Tracker -->
+    <node pkg="adas_perception" type="obstacle_tracker.py" name="obstacle_tracker" output="screen">
+        <rosparam file="$(find adas_perception)/config/lidar_params.yaml" command="load"/>
+    </node>
+    
+    <!-- Camera Detector (optional) -->
+    <node if="$(arg enable_camera)" pkg="adas_perception" type="camera_detector.py" name="camera_detector" output="screen">
+        <param name="confidence_threshold" value="0.5"/>
+    </node>
+
+</launch>

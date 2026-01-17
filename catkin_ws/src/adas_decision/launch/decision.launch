@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ADAS Decision Stack -->
+    <!-- 决策堆栈启动文件 -->
+
+    <!-- TTC Calculator -->
+    <node pkg="adas_decision" type="ttc_calculator.py" name="ttc_calculator" output="screen">
+        <rosparam file="$(find adas_decision)/config/aeb_thresholds.yaml" command="load"/>
+    </node>
+
+    <!-- AEB Finite State Machine -->
+    <node pkg="adas_decision" type="aeb_fsm.py" name="aeb_fsm" output="screen">
+        <rosparam file="$(find adas_decision)/config/aeb_thresholds.yaml" command="load"/>
+    </node>
+
+</launch>

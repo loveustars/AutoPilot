@@ -1,0 +1,7 @@
+# Enable/Disable AEB system
+# 启用/禁用AEB系统
+
+bool enable
+---
+bool success
+string message

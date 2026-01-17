@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ADAS Control - Simulation Mode -->
+    
+    <node pkg="adas_control" type="vehicle_controller.py" name="vehicle_controller" output="screen">
+        <rosparam file="$(find adas_control)/config/sim_vehicle.yaml" command="load"/>
+    </node>
+
+</launch>

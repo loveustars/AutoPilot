@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>adas_hal</name>
+  <version>0.1.0</version>
+  <description>ADAS Hardware Abstraction Layer - Sim2Real bridge</description>
+
+  <maintainer email="nick@todo.todo">nick</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2_ros</depend>
+
+  <export></export>
+</package>

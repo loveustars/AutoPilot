@@ -1,0 +1,13 @@
+# Safety Monitor Configuration
+# 安全监控配置 (ISO 26262)
+
+# Watchdog
+watchdog_timeout_ms: 100.0  # Maximum allowed heartbeat age (relaxed for simulation)
+                            # Real vehicle should use 50ms with C++ watchdog
+
+# Plausibility Rules
+max_decel_no_obstacle: 2.0   # Max decel (m/s²) when no obstacle within threshold
+min_obstacle_distance: 50.0  # Distance threshold for plausibility check (meters)
+
+# Safe State
+safe_deceleration: 5.0  # Deceleration to apply in safe state (m/s²)

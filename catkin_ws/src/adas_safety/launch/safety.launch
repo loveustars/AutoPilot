@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- ADAS Safety Monitor Stack -->
+    <!-- 安全监控启动文件 -->
+    
+    <arg name="use_cpp_watchdog" default="false" doc="Use C++ watchdog for real vehicle"/>
+    
+    <!-- Python Safety Monitor (default - simulation) -->
+    <group unless="$(arg use_cpp_watchdog)">
+        <node pkg="adas_safety" type="safety_monitor.py" name="safety_monitor" output="screen">
+            <rosparam file="$(find adas_safety)/config/safety_rules.yaml" command="load"/>
+        </node>
+    </group>
+    
+    <!-- C++ Safety Watchdog (real vehicle - deterministic timing) -->
+    <group if="$(arg use_cpp_watchdog)">
+        <node pkg="adas_safety" type="safety_watchdog_node" name="safety_watchdog" output="screen">
+            <rosparam file="$(find adas_safety)/config/safety_rules.yaml" command="load"/>
+        </node>
+    </group>
+
+</launch>

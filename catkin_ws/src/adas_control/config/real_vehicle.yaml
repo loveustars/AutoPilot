@@ -1,0 +1,13 @@
+# Vehicle Control Parameters - Real Vehicle
+# 实车控制参数 (预留)
+
+mode: real
+
+# Control - adjust based on actual vehicle
+max_deceleration: 8.0   # m/s² - conservative for real vehicle
+brake_gain: 0.12        # needs calibration
+control_rate: 100.0     # Hz - higher rate for real vehicle
+
+# Actuator dynamics - measure from actual vehicle
+max_brake_rate: 3.0     # more conservative
+brake_delay: 0.1        # account for CAN latency

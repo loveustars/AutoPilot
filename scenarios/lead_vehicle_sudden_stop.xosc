@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- OpenSCENARIO: Lead Vehicle Sudden Stop -->
+<!-- 前车急刹测试场景 -->
+<OpenSCENARIO>
+    <FileHeader revMajor="1" revMinor="0" date="2026-01-17" author="ADAS Team"/>
+    
+    <ParameterDeclarations>
+        <ParameterDeclaration name="EgoSpeed" parameterType="double" value="13.89"/> <!-- 50 km/h -->
+        <ParameterDeclaration name="LeadSpeed" parameterType="double" value="13.89"/>
+        <ParameterDeclaration name="InitialGap" parameterType="double" value="30"/>
+    </ParameterDeclarations>
+    
+    <CatalogLocations/>
+    
+    <RoadNetwork>
+        <LogicFile filepath="Town04"/>
+    </RoadNetwork>
+    
+    <Entities>
+        <ScenarioObject name="Ego">
+            <Vehicle name="vehicle.tesla.model3" vehicleCategory="car"/>
+        </ScenarioObject>
+        <ScenarioObject name="LeadVehicle">
+            <Vehicle name="vehicle.audi.a2" vehicleCategory="car"/>
+        </ScenarioObject>
+    </Entities>
+    
+    <Storyboard>
+        <Init>
+            <Actions>
+                <Private entityRef="Ego">
+                    <PrivateAction>
+                        <TeleportAction>
+                            <Position>
+                                <WorldPosition x="0" y="0" z="0.5" h="0"/>
+                            </Position>
+                        </TeleportAction>
+                    </PrivateAction>
+                    <PrivateAction>
+                        <LongitudinalAction>
+                            <SpeedAction>
+                                <SpeedActionTarget>
+                                    <AbsoluteTargetSpeed value="$EgoSpeed"/>
+                                </SpeedActionTarget>
+                            </SpeedAction>
+                        </LongitudinalAction>
+                    </PrivateAction>
+                </Private>
+                <Private entityRef="LeadVehicle">
+                    <PrivateAction>
+                        <TeleportAction>
+                            <Position>
+                                <RelativeWorldPosition entityRef="Ego" dx="$InitialGap" dy="0" dz="0"/>
+                            </Position>
+                        </TeleportAction>
+                    </PrivateAction>
+                    <PrivateAction>
+                        <LongitudinalAction>
+                            <SpeedAction>
+                                <SpeedActionTarget>
+                                    <AbsoluteTargetSpeed value="$LeadSpeed"/>
+                                </SpeedActionTarget>
+                            </SpeedAction>
+                        </LongitudinalAction>
+                    </PrivateAction>
+                </Private>
+            </Actions>
+        </Init>
+        
+        <Story name="SuddenStopStory">
+            <Act name="SuddenStopAct">
+                <ManeuverGroup name="LeadVehicleManeuver" maximumExecutionCount="1">
+                    <Actors selectTriggeringEntities="false">
+                        <EntityRef entityRef="LeadVehicle"/>
+                    </Actors>
+                    <Maneuver name="SuddenBrake">
+                        <Event name="BrakeEvent" priority="overwrite">
+                            <Action name="BrakeAction">
+                                <PrivateAction>
+                                    <LongitudinalAction>
+                                        <SpeedAction>
+                                            <SpeedActionDynamics dynamicsShape="linear" value="8" dynamicsDimension="rate"/>
+                                            <SpeedActionTarget>
+                                                <AbsoluteTargetSpeed value="0"/>
+                                            </SpeedActionTarget>
+                                        </SpeedAction>
+                                    </LongitudinalAction>
+                                </PrivateAction>
+                            </Action>
+                            <StartTrigger>
+                                <ConditionGroup>
+                                    <Condition name="TimeCondition" delay="0">
+                                        <ByValueCondition>
+                                            <SimulationTimeCondition value="3" rule="greaterThan"/>
+                                        </ByValueCondition>
+                                    </Condition>
+                                </ConditionGroup>
+                            </StartTrigger>
+                        </Event>
+                    </Maneuver>
+                </ManeuverGroup>
+                <StartTrigger/>
+            </Act>
+        </Story>
+        
+        <StopTrigger>
+            <ConditionGroup>
+                <Condition name="EndCondition" delay="0">
+                    <ByValueCondition>
+                        <SimulationTimeCondition value="15" rule="greaterThan"/>
+                    </ByValueCondition>
+                </Condition>
+            </ConditionGroup>
+        </StopTrigger>
+    </Storyboard>
+</OpenSCENARIO>

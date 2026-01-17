@@ -1,0 +1,35 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+Visualization Manager:
+  Displays:
+    - Class: rviz/Grid
+      Name: Grid
+      Plane Cell Count: 50
+      Reference Frame: <Fixed Frame>
+      
+    - Class: rviz/PointCloud2
+      Name: LiDAR
+      Topic: /adas/lidar
+      Size (m): 0.05
+      Color Transformer: Intensity
+      
+    - Class: rviz/MarkerArray
+      Name: Obstacles
+      Topic: /adas/obstacle_markers
+      
+    - Class: rviz/Image
+      Name: Camera
+      Topic: /adas/camera/image
+      
+  Global Options:
+    Fixed Frame: adas_lidar
+    Frame Rate: 30
+    
+  Name: ADAS Visualization
+  
+Window Geometry:
+  Width: 1600
+  Height: 900

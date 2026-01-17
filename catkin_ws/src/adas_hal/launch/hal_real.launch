@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- HAL - Real Vehicle -->
+    
+    <node pkg="adas_hal" type="sensor_bridge_real.py" name="sensor_bridge" output="screen">
+        <!-- Adjust these for your actual sensor setup -->
+        <param name="real_lidar_topic" value="/velodyne_points"/>
+        <param name="real_camera_topic" value="/camera/image_raw"/>
+        <param name="real_twist_topic" value="/vehicle/twist"/>
+        
+        <param name="lidar_frame" value="velodyne"/>
+        <param name="camera_frame" value="camera"/>
+        <param name="base_frame" value="base_link"/>
+    </node>
+
+</launch>

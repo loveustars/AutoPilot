@@ -1,0 +1,15 @@
+# System-wide configuration
+# 系统级配置
+
+# Performance targets
+latency_target_ms: 100  # End-to-end latency target
+
+# Logging
+log_level: INFO  # DEBUG, INFO, WARN, ERROR
+
+# Simulation settings
+simulation:
+  carla_host: localhost
+  carla_port: 2000
+  sync_mode: true
+  fixed_delta_seconds: 0.05

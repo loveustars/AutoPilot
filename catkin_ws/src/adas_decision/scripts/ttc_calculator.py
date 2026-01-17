@@ -117,14 +117,41 @@ class TTCCalculator:
             return
         
         # Calculate relative velocity (positive = approaching)
-        # Obstacle velocity is already relative to ego in obstacle_tracker
-        v_rel = -closest.velocity.x  # Negate: positive means closing distance
+        # 关键修复：使用ego速度来计算相对速度
+        # 如果障碍物是静止的（地面噪声），它的velocity接近0
+        # 相对速度 = ego速度 - 障碍物速度（沿车辆前进方向）
+        obstacle_vel_x = closest.velocity.x if hasattr(closest.velocity, 'x') else 0.0
+        
+        # v_rel > 0 表示接近，v_rel < 0 表示远离
+        # ego前进时，静止障碍物的相对速度 = ego_velocity
+        v_rel = self.ego_velocity - obstacle_vel_x
+        
+        # 额外检查：如果距离很近但相对速度很小，可能是噪声
+        # 真正的碰撞风险需要足够的相对速度
+        min_approach_velocity = 0.5  # m/s - 至少0.5m/s的接近速度才算风险
+        if v_rel < min_approach_velocity:
+            if self._log_counter % 100 == 0:
+                rospy.loginfo(f"TTC skip: low approach velocity v_rel={v_rel:.2f} < {min_approach_velocity}")
+            self.ttc_pub.publish(ttc_msg)
+            return
         
         # Relative acceleration (assume obstacle maintains constant velocity)
         a_rel = -self.ego_acceleration
         
         # Distance with safety margin
         distance = closest.distance - self.safety_margin
+        
+        # 额外检查：距离过近可能是车身反射或地面噪声
+        min_valid_distance = 1.0  # 至少1米才是有效障碍物
+        if closest.distance < min_valid_distance:
+            if self._log_counter % 100 == 0:
+                rospy.loginfo(f"TTC skip: too close distance={closest.distance:.2f} < {min_valid_distance} (possible sensor noise)")
+            self.ttc_pub.publish(ttc_msg)
+            return
+        
+        # 调试日志
+        if self._log_counter % 20 == 0:  # 每秒一次
+            rospy.loginfo(f"TTC calc: dist={closest.distance:.1f}m, v_rel={v_rel:.2f}m/s, ego_v={self.ego_velocity:.2f}m/s")
         
         if distance <= 0:
             # Already within safety margin

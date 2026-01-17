@@ -31,17 +31,17 @@ class LidarProcessor:
         self.cluster_min_samples = rospy.get_param('~cluster_min_samples', 5)
         self.max_distance = rospy.get_param('~max_distance', 50.0)
         
-        # ROI limits (adjusted for reduced false positives)
-        self.min_x = rospy.get_param('~min_x', 0.5)   # 前方 - 降低到0.5m
+        # ROI limits - 关键参数防止误检测
+        self.min_x = rospy.get_param('~min_x', 2.0)   # 前方 - 2m避免车身噪声
         self.max_x = rospy.get_param('~max_x', 50.0)
-        self.min_y = rospy.get_param('~min_y', -10.0)  # 左右 - 恢复到±10m
-        self.max_y = rospy.get_param('~max_y', 10.0)
-        self.min_z = rospy.get_param('~min_z', -2.0)  # 高度 - 放宽
-        self.max_z = rospy.get_param('~max_z', 2.0)   # 放宽
+        self.min_y = rospy.get_param('~min_y', -6.0)  # 左右 - ±6m
+        self.max_y = rospy.get_param('~max_y', 6.0)
+        self.min_z = rospy.get_param('~min_z', -1.0)  # 高度 - 只保留离地1.4m以上
+        self.max_z = rospy.get_param('~max_z', 1.5)
         
-        # Minimum obstacle size requirements - 降低要求
-        self.min_obstacle_points = rospy.get_param('~min_obstacle_points', 5)  # 降低到5点
-        self.min_obstacle_size = rospy.get_param('~min_obstacle_size', 0.2)  # 降低到0.2m
+        # Minimum obstacle size requirements
+        self.min_obstacle_points = rospy.get_param('~min_obstacle_points', 10)  # 10点
+        self.min_obstacle_size = rospy.get_param('~min_obstacle_size', 0.3)  # 0.3m
         
         # Publishers
         self.obstacle_pub = rospy.Publisher(

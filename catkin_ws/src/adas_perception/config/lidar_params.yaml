@@ -15,18 +15,19 @@ ground_z_max: -1.5   # meters - 地面高度上限 (从-1.8调整到-1.5，增�
 cluster_eps: 0.8  # meters - 增大以适应稀疏点云
 cluster_min_samples: 5  # 减少以检测小障碍物
 
-# Range limits (前向检测区域) - 放宽以便调试
+# Range limits (前向检测区域)
+# 关键：min_z 必须高于地面，min_x 要避免车身反射
 max_distance: 50.0  # meters - ignore obstacles beyond this
-min_x: 0.5   # meters - 降低到0.5m
-max_x: 50.0  # meters
-min_y: -10.0  # meters - 恢复到±10m
-max_y: 10.0   # meters
-min_z: -2.0  # meters - 放宽
-max_z: 2.0   # meters - 放宽
+min_x: 2.0    # meters - 增加到2m，避免车身近处噪声
+max_x: 50.0   # meters
+min_y: -6.0   # meters - 缩小到±6m，减少侧向噪声
+max_y: 6.0    # meters
+min_z: -1.0   # meters - 提高！只保留离地1.4m以上的点（行人腿部以上）
+max_z: 1.5    # meters - 降低，避免高处噪声
 
-# Obstacle filtering - 降低要求以便调试
-min_obstacle_points: 5    # 降低到5点
-min_obstacle_size: 0.2    # meters - 降低到0.2m
+# Obstacle filtering - 适当要求
+min_obstacle_points: 10   # 增加到10点，减少噪声
+min_obstacle_size: 0.3    # meters - 增加到0.3m
 
 # Obstacle Tracking
 association_threshold: 2.0  # meters - max distance to associate detection with track

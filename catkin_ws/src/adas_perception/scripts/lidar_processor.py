@@ -31,12 +31,12 @@ class LidarProcessor:
         self.cluster_min_samples = rospy.get_param('~cluster_min_samples', 5)
         self.max_distance = rospy.get_param('~max_distance', 50.0)
         
-        # ROI limits - 关键参数防止误检测
+        # ROI limits - 需要覆盖走廊+鬼探头检测区域
         self.min_x = rospy.get_param('~min_x', 2.0)   # 前方 - 2m避免车身噪声
         self.max_x = rospy.get_param('~max_x', 50.0)
-        self.min_y = rospy.get_param('~min_y', -6.0)  # 左右 - ±6m
-        self.max_y = rospy.get_param('~max_y', 6.0)
-        self.min_z = rospy.get_param('~min_z', -1.0)  # 高度 - 只保留离地1.4m以上
+        self.min_y = rospy.get_param('~min_y', -5.0)  # 左右 - ±5m (走廊+鬼探头)
+        self.max_y = rospy.get_param('~max_y', 5.0)
+        self.min_z = rospy.get_param('~min_z', -1.0)  # 高度 - 离地1.4m以上
         self.max_z = rospy.get_param('~max_z', 1.5)
         
         # Minimum obstacle size requirements

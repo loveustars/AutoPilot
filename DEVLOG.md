@@ -20,10 +20,26 @@
 | 2026-01-17 | AEB | 静止时频繁误报WARNING/FULL_BRAKE | 添加速度阈值、障碍物稳定性、点数过滤 | ✅ |
 | 2026-01-17 | Control | Emergency Override无法覆盖手动控制 | 发布到vehicle_control_manual_override禁用手动模式 | ✅ |
 | 2026-01-17 | ROS-Bridge | numpy.bool废弃导致DVS相机崩溃 | 修改camera.py的numpy.bool为numpy.bool_ | ✅ |
+| 2026-01-18 | AEB | 路边灯柱/信号灯误触发AEB | 实现行驶走廊检测，只检测路径上的障碍物 | ✅ |
 
 ---
 
 ## 变更记录 | Change Log
+
+### 2026-01-18 - 行驶走廊检测与鬼探头处理
+- [x] **行驶走廊 (Driving Corridor)**：
+  - 将检测区域从"扇形"改为"行驶走廊"
+  - `corridor_half_width = ego_width/2 + lane_margin = 1.5m`
+  - 只有 `|y| < 1.5m` 的障碍物才会触发AEB
+  - 路边灯柱/信号灯（y > 1.5m）不再误触发
+- [x] **鬼探头检测 (Lateral Intrusion Detection)**：
+  - 检测正在侧向进入车道的障碍物
+  - `lateral_detection_width = 4.0m` - 侧向检测范围
+  - `lateral_velocity_threshold = 0.5m/s` - 横向速度阈值
+  - 计算障碍物进入车道的预计时间 (intrusion_ttc)
+  - 如果 `intrusion_ttc < 2.0s`，触发AEB警告/制动
+- [x] **配置参数**：
+  - 新增 `ego_width`, `lane_margin`, `lateral_intrusion_enabled` 等参数
 
 ### 2026-01-17 - AEB误报修复与Override机制完善
 - [x] **静止状态保护**：
@@ -74,7 +90,7 @@
 
 ## 待解决问题 | Known Issues
 
-- [] 行进时极易误判导致无法移动，部分修复。
+- [] 矫枉过正，目前没那么灵敏，无法对路灯，路障，护栏等作出相应操作。
 
 ---
 

@@ -145,7 +145,8 @@ source ~/AutoPilot/catkin_ws/devel/setup.bash
 ### Terminal 1: Start CARLA Server
 
 ```bash
-cd $CARLA_ROOT && ./CarlaUE4.sh -quality-level=Low
+cd $CARLA_ROOT
+./CarlaUE4.sh -quality-level=Low
 ```
 
 ### Terminal 2: Start CARLA-ROS Bridge
@@ -169,7 +170,7 @@ roslaunch adas_bringup adas_full_sim.launch
 ### Terminal 5: Manual Control (for testing)
 
 ```bash
-python3 $CARLA_ROOT/PythonAPI/examples/manual_control.py
+roslaunch carla_manual_control carla_manual_control.launch
 ```
 
 ## Usage

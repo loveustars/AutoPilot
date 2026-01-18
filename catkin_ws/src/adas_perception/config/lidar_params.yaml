@@ -16,18 +16,18 @@ cluster_eps: 0.8  # meters - 增大以适应稀疏点云
 cluster_min_samples: 5  # 减少以检测小障碍物
 
 # Range limits (前向检测区域)
-# 关键：min_z 必须高于地面，min_x 要避免车身反射
+# 注意：Y范围需要比走廊宽，以支持鬼探头检测
 max_distance: 50.0  # meters - ignore obstacles beyond this
-min_x: 2.0    # meters - 增加到2m，避免车身近处噪声
+min_x: 2.0    # meters - 避免车身近处噪声
 max_x: 50.0   # meters
-min_y: -6.0   # meters - 缩小到±6m，减少侧向噪声
-max_y: 6.0    # meters
-min_z: -1.0   # meters - 提高！只保留离地1.4m以上的点（行人腿部以上）
+min_y: -5.0   # meters - 需要覆盖走廊+侧向检测区域
+max_y: 5.0    # meters - ±5m 覆盖走廊(±1.5m) + 鬼探头检测(±4m)
+min_z: -1.0   # meters - 只保留离地1.4m以上的点
 max_z: 1.5    # meters - 降低，避免高处噪声
 
-# Obstacle filtering - 适当要求
-min_obstacle_points: 10   # 增加到10点，减少噪声
-min_obstacle_size: 0.3    # meters - 增加到0.3m
+# Obstacle filtering
+min_obstacle_points: 10   # 需要足够点数
+min_obstacle_size: 0.3    # meters - 最小0.3m
 
 # Obstacle Tracking
 association_threshold: 2.0  # meters - max distance to associate detection with track

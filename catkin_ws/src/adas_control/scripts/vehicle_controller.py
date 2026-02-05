@@ -26,6 +26,14 @@ Published Topics:
 
 import rospy
 import numpy as np
+import sys
+import os
+
+# Add carla-ros-bridge Python path for carla_msgs
+carla_bridge_path = os.path.expanduser('~/carla-ros-bridge/catkin_ws/devel/lib/python3/dist-packages')
+if os.path.exists(carla_bridge_path) and carla_bridge_path not in sys.path:
+    sys.path.insert(0, carla_bridge_path)
+
 from geometry_msgs.msg import AccelStamped
 from std_msgs.msg import Bool
 
@@ -125,16 +133,36 @@ class VehicleController:
         if self.emergency_override_enabled and msg.state >= self.AEB_PARTIAL_BRAKE:
             if not self.emergency_active:
                 self.emergency_active = True
-                # Disable manual override to take control from manual_control.py
-                if self.manual_override_pub is not None:
-                    self.manual_override_pub.publish(Bool(data=False))
-                    rospy.logwarn("EMERGENCY OVERRIDE: Disabling manual control, AEB taking over")
-        elif self.emergency_active and msg.state == self.AEB_INACTIVE:
-            self.emergency_active = False
-            # Restore manual control after emergency ends
+                rospy.logwarn(f"EMERGENCY OVERRIDE ACTIVATED: AEB state={msg.state}")
+                
+            # Disable manual override to take control from manual_control.py
+            # Publish repeatedly to ensure it takes effect
             if self.manual_override_pub is not None:
-                self.manual_override_pub.publish(Bool(data=True))
-                rospy.loginfo("Emergency override released, manual control restored")
+                self.manual_override_pub.publish(Bool(data=False))
+                
+            # Force brake values based on state
+            if msg.state == self.AEB_FULL_BRAKE:
+                self.current_brake = 1.0
+                self.current_throttle = 0.0
+                rospy.logwarn(f"FULL BRAKE: brake=1.0, throttle=0.0")
+            elif msg.state == self.AEB_PARTIAL_BRAKE:
+                self.current_brake = max(self.current_brake, 0.6)
+                self.current_throttle = 0.0
+                rospy.loginfo(f"PARTIAL BRAKE: brake={self.current_brake:.1f}")
+                
+            # Immediately publish control command
+            if self.mode == 'simulation' and CARLA_AVAILABLE:
+                self._publish_carla_control()
+                
+        elif self.emergency_active and msg.state < self.AEB_PARTIAL_BRAKE:
+            # Exiting emergency state
+            if msg.state == self.AEB_INACTIVE:
+                self.emergency_active = False
+                self.current_brake = 0.0
+                # Restore manual control after emergency ends
+                if self.manual_override_pub is not None:
+                    self.manual_override_pub.publish(Bool(data=True))
+                    rospy.loginfo("Emergency override released, manual control restored")
     
     def command_callback(self, msg: AccelStamped):
         """Process deceleration command"""
@@ -158,6 +186,20 @@ class VehicleController:
     
     def control_loop(self, event):
         """Periodic control output"""
+        # In emergency mode, ensure brake is applied and override is active
+        if self.emergency_active:
+            # Keep publishing override=False to maintain control
+            if self.manual_override_pub is not None:
+                self.manual_override_pub.publish(Bool(data=False))
+            
+            # Ensure brake is applied
+            if self.aeb_state == self.AEB_FULL_BRAKE:
+                self.current_brake = 1.0
+                self.current_throttle = 0.0
+            elif self.aeb_state == self.AEB_PARTIAL_BRAKE:
+                self.current_brake = max(self.current_brake, 0.6)
+                self.current_throttle = 0.0
+        
         if self.mode == 'simulation' and CARLA_AVAILABLE:
             self._publish_carla_control()
         else:
@@ -175,6 +217,14 @@ class VehicleController:
         msg.manual_gear_shift = False
         
         self.control_pub.publish(msg)
+        
+        # Debug: log when braking
+        if self.current_brake > 0.1:
+            if not hasattr(self, '_brake_log_count'):
+                self._brake_log_count = 0
+            self._brake_log_count += 1
+            if self._brake_log_count % 25 == 1:  # Log every 0.5s at 50Hz
+                rospy.loginfo(f"CARLA Control: brake={self.current_brake:.2f}, throttle={self.current_throttle:.2f}, emergency={self.emergency_active}")
     
     def _publish_real_control(self):
         """Publish control to real vehicle interface"""

@@ -31,7 +31,7 @@ Visualization Manager:
     - Class: rviz/Image
       Name: Camera
       Enabled: true
-      Image Topic: /adas/camera/image/Image
+      Image Topic: /adas/camera/image
       Transport Hint: raw
       Queue Size: 2
       

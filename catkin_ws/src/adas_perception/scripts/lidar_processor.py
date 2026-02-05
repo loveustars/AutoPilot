@@ -9,6 +9,7 @@ Subscribed Topics:
     
 Published Topics:
     /adas/obstacles (adas_msgs/ObstacleArray)
+    /adas/obstacle_markers (visualization_msgs/MarkerArray)
 """
 
 import rospy
@@ -16,6 +17,9 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from sklearn.cluster import DBSCAN
+from visualization_msgs.msg import Marker, MarkerArray
+from std_msgs.msg import ColorRGBA
+from geometry_msgs.msg import Point
 
 from adas_msgs.msg import Obstacle, ObstacleArray
 
@@ -24,28 +28,34 @@ class LidarProcessor:
     def __init__(self):
         rospy.init_node('lidar_processor', anonymous=False)
         
-        # Parameters
-        self.voxel_size = rospy.get_param('~voxel_size', 0.15)  # meters
-        self.ground_z_max = rospy.get_param('~ground_z_max', -1.5)  # CARLA ground level (adjusted)
-        self.cluster_eps = rospy.get_param('~cluster_eps', 0.8)
-        self.cluster_min_samples = rospy.get_param('~cluster_min_samples', 5)
+        # Parameters - Simplified for maximum obstacle detection
+        # CARLA LiDAR is mounted at ~2.4m height
+        # z = 0 is LiDAR position, ground is at z ≈ -2.4
+        self.voxel_size = rospy.get_param('~voxel_size', 0.08)  # Small voxel for fine detail
+        self.ground_z_threshold = rospy.get_param('~ground_z_threshold', -2.2)  # Ground plane (0.2m above actual ground)
+        self.cluster_eps = rospy.get_param('~cluster_eps', 0.4)  # Tight clustering
+        self.cluster_min_samples = rospy.get_param('~cluster_min_samples', 2)  # Minimal points
         self.max_distance = rospy.get_param('~max_distance', 50.0)
         
-        # ROI limits - 需要覆盖走廊+鬼探头检测区域
-        self.min_x = rospy.get_param('~min_x', 2.0)   # 前方 - 2m避免车身噪声
-        self.max_x = rospy.get_param('~max_x', 50.0)
-        self.min_y = rospy.get_param('~min_y', -5.0)  # 左右 - ±5m (走廊+鬼探头)
-        self.max_y = rospy.get_param('~max_y', 5.0)
-        self.min_z = rospy.get_param('~min_z', -1.0)  # 高度 - 离地1.4m以上
-        self.max_z = rospy.get_param('~max_z', 1.5)
+        # ROI limits - Wide detection zone
+        # Keep everything above vehicle chassis clearance (~0.2m from ground = z > -2.2)
+        self.min_x = rospy.get_param('~min_x', 1.5)   # Forward - 1.5m to avoid ego vehicle points
+        self.max_x = rospy.get_param('~max_x', 60.0)  # Extended range
+        self.min_y = rospy.get_param('~min_y', -6.0)  # Left/Right - wider for turns
+        self.max_y = rospy.get_param('~max_y', 6.0)
+        self.min_z = rospy.get_param('~min_z', -2.2)  # Above chassis clearance (0.2m from ground)
+        self.max_z = rospy.get_param('~max_z', 2.0)   # Below sky
         
-        # Minimum obstacle size requirements
-        self.min_obstacle_points = rospy.get_param('~min_obstacle_points', 10)  # 10点
-        self.min_obstacle_size = rospy.get_param('~min_obstacle_size', 0.3)  # 0.3m
+        # Minimum obstacle requirements - Very permissive
+        self.min_obstacle_points = rospy.get_param('~min_obstacle_points', 2)  # Just 2 points
+        self.min_obstacle_size = rospy.get_param('~min_obstacle_size', 0.05)  # 5cm minimum
         
         # Publishers
         self.obstacle_pub = rospy.Publisher(
             '/adas/obstacles', ObstacleArray, queue_size=1
+        )
+        self.marker_pub = rospy.Publisher(
+            '/adas/obstacle_markers', MarkerArray, queue_size=1
         )
         
         # Subscribers
@@ -77,6 +87,10 @@ class LidarProcessor:
         obstacle_msg = self._create_obstacle_array(obstacles, msg.header)
         self.obstacle_pub.publish(obstacle_msg)
         
+        # Publish visualization markers
+        marker_msg = self._create_marker_array(obstacles, msg.header)
+        self.marker_pub.publish(marker_msg)
+        
         # Performance logging
         elapsed = (rospy.Time.now() - start_time).to_sec() * 1000
         if elapsed > 30:
@@ -100,29 +114,48 @@ class LidarProcessor:
         return points[unique_indices]
     
     def _remove_ground(self, points: np.ndarray) -> np.ndarray:
-        """Filter points to ROI and remove ground (adapted for CARLA)
+        """Filter points to ROI - keep everything above chassis clearance
         
-        CARLA LiDAR坐标系:
-        - X: 前方为正
-        - Y: 左侧为正  
-        - Z: 上方为正，地面约在 z=-2.4 (LiDAR安装高度)
+        CARLA LiDAR coordinate system:
+        - X: Forward positive
+        - Y: Left positive  
+        - Z: Up positive, ground at z ≈ -2.4 (LiDAR height)
+        
+        Strategy: Keep all points above ground (z > -2.2) within ROI.
+        This includes ALL obstacles: barriers, poles, vehicles, pedestrians, etc.
         """
         if len(points) == 0:
             return points
         
-        # ROI过滤：只保留前方、合理高度范围内的点
+        # Simple ROI filter - keep everything above chassis clearance
         mask = (
-            (points[:, 0] > self.min_x) &  # 前方
+            (points[:, 0] > self.min_x) &  # Forward
             (points[:, 0] < self.max_x) &
-            (points[:, 1] > self.min_y) &  # 左右
+            (points[:, 1] > self.min_y) &  # Left/Right
             (points[:, 1] < self.max_y) &
-            (points[:, 2] > self.min_z) &  # 高于地面
-            (points[:, 2] < self.max_z)    # 低于天空
+            (points[:, 2] > self.min_z) &  # Above ground (chassis clearance)
+            (points[:, 2] < self.max_z)    # Below sky
         )
-        return points[mask]
+        
+        filtered = points[mask]
+        
+        # Debug: log point counts occasionally
+        if hasattr(self, '_filter_log_count'):
+            self._filter_log_count += 1
+        else:
+            self._filter_log_count = 0
+        
+        if self._filter_log_count % 100 == 0:
+            rospy.loginfo(f"LiDAR: {len(points)} raw -> {len(filtered)} after ROI filter")
+        
+        return filtered
     
     def _cluster_obstacles(self, points: np.ndarray) -> list:
-        """Cluster points into obstacles using DBSCAN"""
+        """Cluster points into obstacles using DBSCAN
+        
+        Strategy: Treat ALL clusters as potential obstacles.
+        Let the path-based filtering in TTC calculator decide what's dangerous.
+        """
         if len(points) < self.cluster_min_samples:
             return []
         
@@ -136,7 +169,7 @@ class LidarProcessor:
         unique_labels = set(labels)
         
         for label in unique_labels:
-            if label == -1:  # Noise
+            if label == -1:  # Noise points - still consider if enough points
                 continue
             
             cluster_mask = labels == label
@@ -155,20 +188,21 @@ class LidarProcessor:
             
             width = max_pt[1] - min_pt[1]
             length = max_pt[0] - min_pt[0]
+            height = max_pt[2] - min_pt[2]
             
-            # Filter small obstacles (likely noise)
-            if len(cluster_points) < self.min_obstacle_points:
-                continue
-            if max(width, length) < self.min_obstacle_size:
+            # Very minimal filtering - only reject truly tiny noise
+            # Keep everything that could possibly be an obstacle
+            if len(cluster_points) < 2:
                 continue
             
+            # Accept obstacle
             obstacles.append({
                 'id': self._get_next_id(),
                 'centroid': centroid,
                 'distance': distance,
-                'width': width,
-                'length': length,
-                'height': max_pt[2] - min_pt[2],
+                'width': max(width, 0.1),  # Minimum 10cm for visualization
+                'length': max(length, 0.1),
+                'height': max(height, 0.1),
                 'points': len(cluster_points)
             })
         
@@ -210,6 +244,67 @@ class LidarProcessor:
                 msg.closest_obstacle_idx = i
         
         return msg
+    
+    def _create_marker_array(self, obstacles: list, header) -> MarkerArray:
+        """Create MarkerArray for RViz visualization"""
+        marker_array = MarkerArray()
+        
+        # First, add a delete all marker to clear old markers
+        delete_marker = Marker()
+        delete_marker.header = header
+        delete_marker.action = Marker.DELETEALL
+        marker_array.markers.append(delete_marker)
+        
+        for i, obs in enumerate(obstacles):
+            # Bounding box marker
+            marker = Marker()
+            marker.header = header
+            marker.ns = "obstacles"
+            marker.id = i
+            marker.type = Marker.CUBE
+            marker.action = Marker.ADD
+            
+            marker.pose.position.x = obs['centroid'][0]
+            marker.pose.position.y = obs['centroid'][1]
+            marker.pose.position.z = obs['centroid'][2]
+            marker.pose.orientation.w = 1.0
+            
+            marker.scale.x = max(obs['length'], 0.5)
+            marker.scale.y = max(obs['width'], 0.5)
+            marker.scale.z = max(obs['height'], 0.5)
+            
+            # Color based on distance (red=close, green=far)
+            dist_normalized = min(obs['distance'] / 30.0, 1.0)
+            marker.color = ColorRGBA(
+                r=1.0 - dist_normalized,
+                g=dist_normalized,
+                b=0.2,
+                a=0.7
+            )
+            
+            marker.lifetime = rospy.Duration(0.2)  # 200ms lifetime
+            marker_array.markers.append(marker)
+            
+            # Text label with distance
+            text_marker = Marker()
+            text_marker.header = header
+            text_marker.ns = "obstacle_labels"
+            text_marker.id = i
+            text_marker.type = Marker.TEXT_VIEW_FACING
+            text_marker.action = Marker.ADD
+            
+            text_marker.pose.position.x = obs['centroid'][0]
+            text_marker.pose.position.y = obs['centroid'][1]
+            text_marker.pose.position.z = obs['centroid'][2] + obs['height'] / 2 + 0.5
+            
+            text_marker.scale.z = 0.5  # Text height
+            text_marker.color = ColorRGBA(r=1.0, g=1.0, b=1.0, a=1.0)
+            text_marker.text = f"{obs['distance']:.1f}m"
+            text_marker.lifetime = rospy.Duration(0.2)
+            
+            marker_array.markers.append(text_marker)
+        
+        return marker_array
     
     def run(self):
         rospy.spin()

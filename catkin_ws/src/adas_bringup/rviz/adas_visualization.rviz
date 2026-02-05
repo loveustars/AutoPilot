@@ -1,34 +1,72 @@
 Panels:
   - Class: rviz/Displays
     Name: Displays
+    Property Tree Widget:
+      Expanded: ~
   - Class: rviz/Views
     Name: Views
 Visualization Manager:
+  Class: ""
   Displays:
     - Class: rviz/Grid
       Name: Grid
+      Enabled: true
       Plane Cell Count: 50
       Reference Frame: <Fixed Frame>
       
     - Class: rviz/PointCloud2
       Name: LiDAR
+      Enabled: true
       Topic: /adas/lidar
       Size (m): 0.05
       Color Transformer: Intensity
+      Unreliable: false
       
     - Class: rviz/MarkerArray
       Name: Obstacles
-      Topic: /adas/obstacle_markers
+      Enabled: true
+      Marker Topic: /adas/obstacle_markers
+      Queue Size: 100
       
     - Class: rviz/Image
       Name: Camera
-      Topic: /adas/camera/image
+      Enabled: true
+      Image Topic: /adas/camera/image/Image
+      Transport Hint: raw
+      Queue Size: 2
+      
+    - Class: rviz/MarkerArray
+      Name: Predicted Path
+      Enabled: true
+      Marker Topic: /adas/predicted_path
+      Queue Size: 100
       
   Global Options:
     Fixed Frame: adas_lidar
     Frame Rate: 30
     
   Name: ADAS Visualization
+  Tools:
+    - Class: rviz/MoveCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz/ThirdPersonFollower
+      Distance: 30
+      Enable Stereo Rendering:
+        Value: false
+      Focal Point:
+        X: 10
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.5
+      Target Frame: adas_lidar
+      Value: ThirdPersonFollower
+      Yaw: 3.14
   
 Window Geometry:
   Width: 1600

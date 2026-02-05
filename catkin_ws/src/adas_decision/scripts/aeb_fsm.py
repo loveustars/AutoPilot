@@ -147,9 +147,19 @@ class AEBFiniteStateMachine:
                 else:
                     # Transitions to lower urgency require minimum dwell time
                     dwell_time = (rospy.Time.now() - self.state_entry_time).to_sec()
-                    min_dwell = 0.5  # seconds (increased from 0.3)
-                    if dwell_time > min_dwell:
-                        self._transition_to(target_state, ttc)
+                    
+                    # CRITICAL: In FULL_BRAKE, don't release until safe or longer dwell
+                    if self.current_state == AEBStateEnum.FULL_BRAKE:
+                        # Require much longer dwell time to exit FULL_BRAKE
+                        # This prevents premature release when obstacle detection flickers
+                        min_dwell = 2.0  # 2 seconds minimum in FULL_BRAKE
+                        # Also require multiple confirmations
+                        if dwell_time > min_dwell and self.pending_count >= 3:
+                            self._transition_to(target_state, ttc)
+                    else:
+                        min_dwell = 0.5  # seconds
+                        if dwell_time > min_dwell:
+                            self._transition_to(target_state, ttc)
         else:
             # Reset pending if back to current state
             self.pending_state = self.current_state

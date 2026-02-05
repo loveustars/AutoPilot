@@ -17,28 +17,22 @@ min_ttc: 0.1         # Minimum TTC to report (seconds)
 max_ttc: 10.0        # Maximum TTC to consider (seconds)
 safety_margin: 1.5   # Additional safety distance (meters)
 
-# 行驶走廊参数 - 只检测行驶路径上的障碍物
-ego_width: 2.0             # 车宽 (meters)
-lane_margin: 1.5           # 车道边缘余量 (meters) - 放宽到1.5m
-# corridor_half_width = ego_width/2 + lane_margin = 2.5m
+# Path-based corridor detection (vehicle width auto-detected from CARLA)
+lane_margin: 0.2     # Added to auto-detected vehicle width (meters)
 
-# 转弯处理参数 (Turning Detection)
-turning_enabled: true              # 启用转弯检测
-yaw_rate_threshold: 0.05           # 偏航角速度阈值 (rad/s) - 超过此值认为在转弯
-turning_corridor_expansion: 0.5    # 转弯时走廊额外扩展 (meters)
-curve_lookahead: 2.0               # 曲线预瞄时间 (seconds)
+# Path prediction parameters
+path_points: 20              # Number of points in predicted path
+path_max_distance: 50.0      # Maximum prediction distance (meters)
 
-# 标志牌/路灯杆过滤 (Sign/Pole Filter)
-sign_filter_enabled: false         # 禁用标志牌过滤 - 避免误过滤
-sign_width_threshold: 0.8          # 宽度阈值 (meters) - 小于此值视为杆状物
-sign_height_ratio: 2.0             # 高度/宽度比阈值 - 大于此值视为杆状物
-sign_min_ground_clearance: 1.0     # 最小离地间隙 (meters) - 底部高于此值视为悬空物体
+# Suspended object filter
+sign_filter_enabled: false         # Disable to avoid false filtering
+sign_min_ground_clearance: 1.0     # Objects with bottom > 1m above ground are filtered
 
-# 鬼探头检测参数 (Lateral Intrusion Detection)
-lateral_intrusion_enabled: true    # 启用侧向入侵检测
-lateral_detection_width: 4.0       # 侧向检测范围 (meters)
-lateral_velocity_threshold: 0.5    # 横向速度阈值 (m/s) - 超过此速度才认为在侵入
-intrusion_ttc_threshold: 2.0       # 预计进入车道的时间阈值 (seconds)
+# Lateral intrusion detection (ghost pedestrian)
+lateral_intrusion_enabled: true    # Enable lateral intrusion detection
+lateral_detection_width: 3.0       # Base lateral detection range (meters)
+lateral_velocity_threshold: 0.5    # Min lateral velocity to consider intrusion (m/s)
+intrusion_ttc_threshold: 2.0       # Max time to corridor entry (seconds)
 
 # Stability filtering
 min_ego_velocity: 0.1          # m/s - 几乎静止也计算TTC
